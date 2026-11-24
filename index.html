@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>طراحی QR روی عکس</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:22px 14px 40px;background:radial-gradient(circle at top right,#263b60,#101827 55%,#090e18);color:#f8fafc;font-family:Tahoma,Arial,sans-serif}
+.app{width:min(100%,540px);margin:auto}
+header{text-align:center;margin:8px 0 22px}
+header .logo{font-size:38px}
+h1{font-size:24px;margin:8px 0}
+header p{font-size:13px;color:#aebbd0;line-height:1.8;margin:0}
+.panel{background:rgba(255,255,255,.075);border:1px solid #ffffff20;border-radius:20px;padding:17px;margin-bottom:15px;box-shadow:0 16px 45px #0003}
+.field{margin-bottom:15px;min-width:0}
+label{display:block;font-size:13px;color:#dce6f5;margin-bottom:8px}
+textarea,input[type=text]{width:100%;border:1px solid #34445d;border-radius:12px;background:#111d30;color:white;padding:12px;outline:none;font:inherit;font-size:14px}
+textarea{min-height:85px;resize:vertical;line-height:1.8}
+input[type=color]{width:100%;height:42px;border:1px solid #34445d;border-radius:10px;padding:3px;background:#111d30}
+input[type=range]{width:100%;accent-color:#a78bfa}
+input[type=file]{display:none}
+.upload{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:1px dashed #7788a6;border-radius:12px;padding:13px;color:#e8ddff;cursor:pointer;background:#18243a;font-size:13px}
+.hint{color:#9eacc2;font-size:11px;line-height:1.7;margin-top:6px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.preview-wrap{display:flex;justify-content:center;padding:5px 0 14px}
+canvas{display:block;width:min(100%,360px);height:auto;max-height:72vh;object-fit:contain;border-radius:14px;background:#1b2430;box-shadow:0 12px 35px #0005}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{border:0;border-radius:12px;padding:14px 10px;cursor:pointer;font:inherit;font-size:13px;font-weight:bold}
+.primary{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white}
+.secondary{background:#26364f;color:#f1f5f9}
+.status{min-height:20px;text-align:center;color:#c4b5fd;font-size:12px;margin-top:12px}
+#qr-source{position:fixed;left:-10000px;top:0}
+footer{text-align:center;color:#7889a3;font-size:11px;margin-top:18px}
+</style>
+</head>
+<body>
+<main class="app">
+<header>
+<div class="logo">▦</div>
+<h1>طراحی QR روی عکس</h1>
+<p>یک پوستر QR شیک با عکس دلخواهت بساز و ذخیره کن.</p>
+</header>
+
+<section class="panel">
+<div class="field">
+<label for="content">متن یا لینک QR</label>
+<textarea id="content" placeholder="لینک یا متن موردنظرت را وارد کن...">https://example.com</textarea>
+</div>
+<div class="field">
+<label>عکس پس‌زمینه از گالری</label>
+<label class="upload" for="backgroundImage">＋ انتخاب عکس از گالری</label>
+<input id="backgroundImage" type="file" accept="image/*">
+<div class="hint" id="fileName">هنوز عکسی انتخاب نشده است.</div>
+</div>
+<div class="grid">
+<div class="field">
+<label for="qrColor">رنگ QR</label>
+<input id="qrColor" type="color" value="#050505">
+</div>
+<div class="field">
+<label for="cardColor">رنگ کادر</label>
+<input id="cardColor" type="color" value="#ffffff">
+</div>
+</div>
+<div class="field">
+<label for="caption">متن زیر QR (مثلاً آیدی)</label>
+<input id="caption" type="text" placeholder="@your_username" value="@your_username">
+</div>
+<div class="grid">
+<div class="field">
+<label for="qrSize">اندازه QR: <span id="sizeValue">46٪</span></label>
+<input id="qrSize" type="range" min="30" max="65" value="46">
+</div>
+<div class="field">
+<label for="cardWidth">عرض کادر: <span id="widthValue">78٪</span></label>
+<input id="cardWidth" type="range" min="62" max="92" value="78">
+</div>
+</div>
+<div class="grid">
+<div class="field">
+<label for="posX">جابجایی چپ و راست: <span id="xValue">۵۰٪</span></label>
+<input id="posX" type="range" min="0" max="100" value="50">
+</div>
+<div class="field">
+<label for="posY">جابجایی بالا و پایین: <span id="yValue">۵۰٪</span></label>
+<input id="posY" type="range" min="0" max="100" value="50">
+</div>
+</div>
+<div class="field">
+<label for="roundness">گردی گوشه‌های کادر: <span id="roundValue">۸٪</span></label>
+<input id="roundness" type="range" min="2" max="14" value="8">
+</div>
+</section>
+
+<section class="panel">
+<label>پیش‌نمایش پوستر عمودی</label>
+<div class="preview-wrap"><canvas id="output" width="900" height="1800"></canvas></div>
+<div class="buttons">
+<button class="primary" id="downloadBtn">⬇ ذخیره تصویر</button>
+<button class="secondary" id="shareBtn">↗ اشتراک‌گذاری</button>
+</div>
+<div class="status" id="status" aria-live="polite"></div>
+</section>
+<footer>برای اسکن بهتر، QR را واضح و با کنتراست بالا نگه دار.</footer>
+</main>
+<div id="qr-source"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const canvas=$('output'),ctx=canvas.getContext('2d'),qrHost=$('qr-source');
+let background=null,timer=null;
+
+function status(t){$('status').textContent=t}
+function roundedRect(c,x,y,w,h,r){
+  c.beginPath();c.roundRect(x,y,w,h,r);c.closePath();
+}
+function drawBackground(){
+  const W=canvas.width,H=canvas.height;
+  if(background){
+    // اندازه بوم دقیقاً با نسبت ابعاد عکس یکی است؛ عکس بریده یا کشیده نمی‌شود.
+    ctx.drawImage(background,0,0,W,H);
+  }else{
+    const g=ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'#171b1b');g.addColorStop(1,'#252a2a');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#ffffff25';ctx.font=`${Math.max(22,Math.min(W,H)*.035)}px Arial`;
+    ctx.textAlign='center';ctx.fillText('عکس پس‌زمینه‌ات را انتخاب کن',W/2,H*.12);
+  }
+}
+function render(){
+  const value=$('content').value.trim();
+  if(!value){drawBackground();status('متن یا لینک QR را وارد کن.');return}
+  if(typeof QRCode==='undefined'){drawBackground();status('برای ساخت QR اتصال اینترنت لازم است.');return}
+  qrHost.innerHTML='';
+  try{
+    // This generates a real QR matrix encoding the exact entered text or URL.
+    new QRCode(qrHost,{
+      text:value,
+      width:800,
+      height:800,
+      colorDark:$('qrColor').value,
+      colorLight:$('cardColor').value,
+      correctLevel:QRCode.CorrectLevel.H
+    });
+    setTimeout(drawPoster,120);
+  }catch(e){
+    drawBackground();
+    status('ساخت QR ممکن نشد؛ متن کوتاه‌تری امتحان کن.');
+  }
+}
+function drawPoster(){
+  const q=qrHost.querySelector('canvas')||qrHost.querySelector('img');
+  if(!q)return;
+  const W=canvas.width,H=canvas.height;
+  const base=Math.min(W,H);
+  const cardW=base*Number($('cardWidth').value)/100;
+  const qrSize=base*Number($('qrSize').value)/100;
+  const caption=$('caption').value.trim();
+  const pad=base*.055;
+  const quiet=base*.035; // clear quiet zone around the QR for reliable scanning
+  const captionSpace=caption?base*.14:base*.035;
+  const cardH=qrSize+pad*2+captionSpace;
+  const maxX=Math.max(0,W-cardW), maxY=Math.max(0,H-cardH);
+  const x=maxX*Number($('posX').value)/100;
+  const y=maxY*Number($('posY').value)/100;
+  const radius=base*Number($('roundness').value)/100;
+
+  ctx.clearRect(0,0,W,H);
+  drawBackground();
+
+  // QR codes scan most reliably with dark modules on a light background.
+  const cardColor=$('cardColor').value;
+  const qrColor=$('qrColor').value;
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.28)';
+  ctx.shadowBlur=base*.035;
+  ctx.shadowOffsetY=base*.012;
+  ctx.fillStyle=cardColor;
+  roundedRect(ctx,x,y,cardW,cardH,radius);
+  ctx.fill();
+  ctx.restore();
+
+  // Place QR inside the card and include a light quiet-zone margin.
+  const qrX=x+(cardW-qrSize)/2;
+  const qrY=y+pad;
+  const qrWithQuiet=document.createElement('canvas');
+  const quietPx=Math.max(24,Math.round(q.width*.045));
+  qrWithQuiet.width=q.width+quietPx*2;
+  qrWithQuiet.height=q.height+quietPx*2;
+  const qctx=qrWithQuiet.getContext('2d');
+  qctx.fillStyle=$('cardColor').value;
+  qctx.fillRect(0,0,qrWithQuiet.width,qrWithQuiet.height);
+  qctx.imageSmoothingEnabled=false;
+  qctx.drawImage(q,quietPx,quietPx,q.width,q.height);
+
+  // Use nearest-neighbour scaling to keep QR modules crisp.
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(qrWithQuiet,qrX-quiet,qrY-quiet,qrSize+quiet*2,qrSize+quiet*2);
+  ctx.imageSmoothingEnabled=true;
+
+  if(caption){
+    ctx.fillStyle=qrColor;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    const fontSize=Math.min(base*.065,cardW*.085);
+    ctx.font=`bold ${fontSize}px Arial, Tahoma, sans-serif`;
+    ctx.fillText(caption,W/2,qrY+qrSize+pad+captionSpace/2-base*.01,cardW-base*.08);
+  }
+
+  // Warn if the chosen colors are too similar for dependable scanning.
+  const lum=c=>{
+    const v=[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)].map(n=>{
+      n/=255;return n<=.04045?n/12.92:Math.pow((n+.055)/1.055,2.4);
+    });
+    return .2126*v[0]+.7152*v[1]+.0722*v[2];
+  };
+  if(Math.abs(lum(qrColor)-lum(cardColor))<.45){
+    status('هشدار: رنگ QR و کادر خیلی به هم نزدیک‌اند؛ برای اسکن بهتر QR تیره و کادر روشن انتخاب کن.');
+  }else{
+    status(`QR واقعی آماده است؛ متن/لینک واردشده رمزگذاری شد. اندازه خروجی: ${W} × ${H}`);
+  }
+}
+function schedule(){clearTimeout(timer);timer=setTimeout(render,180)}
+
+$('backgroundImage').addEventListener('change',e=>{
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  if(!file.type.startsWith('image/'))return status('یک عکس معتبر انتخاب کن.');
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{background=img;canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;$('fileName').textContent=file.name;render()};
+    img.onerror=()=>status('خواندن عکس ممکن نشد.');
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+['content','qrColor','cardColor','caption'].forEach(id=>$(id).addEventListener('input',schedule));
+['qrSize','cardWidth','roundness','posX','posY'].forEach(id=>$(id).addEventListener('input',()=>{
+  $('sizeValue').textContent=$('qrSize').value+'٪';
+  $('widthValue').textContent=$('cardWidth').value+'٪';
+  $('roundValue').textContent=$('roundness').value+'٪';
+  $('xValue').textContent=$('posX').value+'٪';
+  $('yValue').textContent=$('posY').value+'٪';
+  render();
+}));
+function blob(){return new Promise(resolve=>canvas.toBlob(resolve,'image/png'))}
+$('downloadBtn').addEventListener('click',async()=>{
+  const b=await blob();if(!b)return status('ساخت تصویر ممکن نشد.');
+  const url=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=url;a.download='qr-poster.png';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  status('تصویر آماده ذخیره است.');
+});
+$('shareBtn').addEventListener('click',async()=>{
+  const b=await blob();if(!b)return status('ساخت تصویر ممکن نشد.');
+  const f=new File([b],'qr-poster.png',{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+    try{await navigator.share({files:[f],title:'پوستر QR من'});}
+    catch(e){if(e.name!=='AbortError')status('اشتراک‌گذاری انجام نشد.')}
+  }else status('اشتراک‌گذاری فایل پشتیبانی نمی‌شود؛ از ذخیره تصویر استفاده کن.');
+});
+render();
+</script>
+</body>
+  </html>
